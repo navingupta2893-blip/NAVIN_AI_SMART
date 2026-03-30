@@ -22,17 +22,14 @@ def find_error_smart(user_input):
     for item in data:
         score = 0
 
-        # Match error words
         for word in item["error"].lower().split("_"):
             if word in user_input:
                 score += 2
 
-        # Match variants
         for variant in item.get("errorVariants", []):
             if variant.lower() in user_input:
                 score += 3
 
-        # Match description words
         if item.get("description"):
             for word in item["description"].lower().split():
                 if word in user_input:
@@ -43,6 +40,15 @@ def find_error_smart(user_input):
             best_match = item
 
     return best_match if max_score > 0 else None
+
+# ---------- Severity Emoji ----------
+def get_severity_icon(severity):
+    if severity == "High":
+        return "🔥 HIGH"
+    elif severity == "Medium":
+        return "⚠️ MEDIUM"
+    else:
+        return "🟢 LOW"
 
 # ---------- AI Explanation ----------
 def generate_ai_explanation(user_input, result):
@@ -57,7 +63,7 @@ Description: {result.get("description")}
 Possible Causes: {result.get("possibleCauses")}
 Recommendations: {result.get("Recommendations")}
 
-Explain clearly:
+Explain in simple words:
 - What happened
 - Why it happened
 - What should be done
@@ -71,10 +77,8 @@ Explain clearly:
         return response.choices[0].message.content
 
     except Exception:
-        # Fallback explanation
         return (
-            f"SAP Error: {result.get('error')}\n\n"
-            f"Description: {result.get('description')}\n\n"
+            f"{result.get('description')}\n\n"
             f"Causes: {', '.join(result.get('possibleCauses', []))}\n\n"
             f"Fix: {', '.join(result.get('Recommendations', []))}"
         )
@@ -96,48 +100,57 @@ def get_dump():
 
         if result:
             ai_text = generate_ai_explanation(user_input, result)
+            severity = get_severity_icon(result.get("severity"))
 
-            # ---------- CLEAN FORMATTED RESPONSE ----------
             formatted_output = f"""
-## 🤖 SAP Smart Diagnosis
+==================================================
+🤖 SAP SMART SUPPORT AGENT
+==================================================
 
-### 📌 Error: {result.get("error")}
+📌 ERROR:
+{result.get("error")}
 
-### 🧠 Explanation
+🚨 SEVERITY:
+{severity}
+
+--------------------------------------------------
+
+🧠 ANALYSIS:
 {ai_text}
 
----
+--------------------------------------------------
 
-### 📊 Details
-- Description: {result.get("description")}
-- Severity: {result.get("severity")}
-- Team: {result.get("ResponsibleTeam")}
+📊 DETAILS:
+• Description : {result.get("description")}
+• Team        : {result.get("ResponsibleTeam")}
 
----
+--------------------------------------------------
 
-### ⚠️ Possible Causes
-{chr(10).join(["- " + c for c in result.get("possibleCauses", [])])}
+⚠️ POSSIBLE CAUSES:
+{chr(10).join(["  • " + c for c in result.get("possibleCauses", [])])}
 
----
+--------------------------------------------------
 
-### ✅ Recommendations
-{chr(10).join(["- " + r for r in result.get("Recommendations", [])])}
+✅ RECOMMENDED ACTIONS:
+{chr(10).join(["  • " + r for r in result.get("Recommendations", [])])}
 
----
+--------------------------------------------------
 
-### 🔧 Transaction Codes
+🔧 TRANSACTION CODES:
 {", ".join(result.get("transactionCodes", []))}
 
----
+--------------------------------------------------
 
-### 📚 SAP Notes
-{chr(10).join(result.get("sapNotes", []))}
+📚 SAP NOTES:
+{chr(10).join(["  • " + note for note in result.get("sapNotes", [])])}
 
----
+--------------------------------------------------
 
-### 📩 Mail Draft
+📩 READY MAIL (COPY & SEND):
 
 {result.get("mailDraft")}
+
+==================================================
 """
 
             return jsonify({
