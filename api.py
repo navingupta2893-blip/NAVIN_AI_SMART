@@ -41,7 +41,7 @@ If nothing matches, return NONE.
 """
 
         response = client.chat.completions.create(
-            model="gpt-5.3",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
 
@@ -78,7 +78,7 @@ Keep it short and practical.
 """
 
         response = client.chat.completions.create(
-            model="gpt-5.3",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
 
