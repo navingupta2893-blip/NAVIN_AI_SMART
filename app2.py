@@ -1,57 +1,64 @@
 import streamlit as st
 import json
-# import win32com.client as win32
 
 # ---------- Load JSON ----------
-with open("sap_notes_db2.json", "r") as file:
-    data = json.load(file)
+with open("sap_notes_db2.json", "r") as f:
+    data = json.load(f)
 
-st.title("SAP BASIS Smart Support Agent 🤖")
-
-user_input = st.text_input("Enter SAP Error / Dump Name")
-
-# ---------- Search Logic ----------
-if user_input:
-    found = False
+# ---------- Search ----------
+def find_error(user_input):
+    user_input = user_input.lower()
 
     for item in data:
-        for err in item["errorVariants"]:
-            if err.lower() in user_input.lower():
+        if (
+            user_input in item.get("error", "").lower()
+            or any(user_input in v.lower() for v in item.get("errorVariants", []))
+        ):
+            return item
+    return None
 
-                found = True
+# ---------- UI ----------
+st.set_page_config(page_title="SAP AI Assistant", layout="wide")
 
-                st.header(f"Error: {item['error']}")
+st.title("🤖 SAP Dump AI Assistant")
 
-                st.subheader("Description")
-                st.write(item["description"])
+query = st.text_input("Enter SAP Error / Dump", placeholder="e.g. DYNPRO_NOT_FOUND")
 
-                st.subheader("Possible Causes")
-                for c in item["possibleCauses"]:
-                    st.write("• " + c)
+if query:
+    result = find_error(query)
 
-                st.subheader("Recommendations")
-                for r in item["Recommendations"]:
-                    st.write("• " + r)
+    if result:
+        col1, col2 = st.columns(2)
 
-                # -------- NEW SECTION --------
-                st.subheader("Recommended SAP Notes")
-                for note in item["sapNotes"]:
-                    st.write("• " + note)
+        with col1:
+            st.subheader("🚨 Error")
+            st.error(result.get("error"))
 
-                st.subheader("Transactions to Check")
-                for t in item["transactionCodes"]:
-                    st.write("• " + t)
+            st.subheader("📄 Description")
+            st.write(result.get("description"))
 
-                st.subheader("Responsible Team")
-                st.write(item["ResponsibleTeam"])
+            st.subheader("🔥 Severity")
+            st.warning(result.get("severity"))
 
-                st.subheader("Mail Draft")
-                st.code(item["mailDraft"])
+            st.subheader("👨‍💻 Responsible Team")
+            st.info(result.get("ResponsibleTeam"))
 
-                break
+        with col2:
+            st.subheader("⚠️ Possible Causes")
+            st.write(result.get("possibleCauses"))
 
-        if found:
-            break
+            st.subheader("✅ Recommendations")
+            st.success(result.get("Recommendations"))
 
-    if not found:
-        st.error("No matching SAP error found")
+            st.subheader("🧭 Transaction Codes")
+            st.write(result.get("transactionCodes"))
+
+        st.subheader("📘 SAP Notes")
+        for note in result.get("sapNotes", []):
+            st.markdown(f"- {note}")
+
+        st.subheader("✉️ Mail Draft")
+        st.code(result.get("mailDraft"))
+
+    else:
+        st.error("❌ No matching SAP error found")
