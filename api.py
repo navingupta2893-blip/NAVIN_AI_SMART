@@ -55,7 +55,7 @@ def generate_ai_explanation(user_input, result):
         prompt = f"""
 Explain this SAP issue in simple words.
 
-User: {user_input}
+User Query: {user_input}
 Error: {result.get("error")}
 Description: {result.get("description")}
 Causes: {result.get("possibleCauses")}
@@ -88,55 +88,17 @@ def get_dump():
         ai_text = generate_ai_explanation(user_input, result)
         sev = severity_tag(result.get("severity"))
 
-        # ---------- BEAUTIFUL FORMATTING ----------
-        formatted = f"""
-══════════════════════════════════════════
-🤖  SAP SMART ASSISTANT
-══════════════════════════════════════════
-
-🔴 ERROR        : {result.get("error")}
-⚡ SEVERITY     : {sev}
-
-──────────────────────────────────────────
-
-🧠 ANALYSIS:
-{ai_text}
-
-──────────────────────────────────────────
-
-📋 DETAILS:
-   Description : {result.get("description")}
-   Team        : {result.get("ResponsibleTeam")}
-
-──────────────────────────────────────────
-
-⚠️ POSSIBLE CAUSES:
-{chr(10).join([f"   • {c}" for c in result.get("possibleCauses", [])])}
-
-──────────────────────────────────────────
-
-✅ RECOMMENDED ACTIONS:
-{chr(10).join([f"   • {r}" for r in result.get("Recommendations", [])])}
-
-──────────────────────────────────────────
-
-🔧 TRANSACTION CODES:
-   {", ".join(result.get("transactionCodes", []))}
-
-──────────────────────────────────────────
-
-📚 SAP NOTES:
-{chr(10).join([f"   • {n}" for n in result.get("sapNotes", [])])}
-
-──────────────────────────────────────────
-
-📩 MAIL DRAFT:
-{result.get("mailDraft")}
-
-══════════════════════════════════════════
-✔ END OF ANALYSIS
-══════════════════════════════════════════
-"""
+        # ---------- AGENT SAFE FORMATTING ----------
+        formatted = (
+            f"SAP SMART ASSISTANT | ERROR: {result.get('error')} | SEVERITY: {sev}\n\n"
+            f"ANALYSIS:\n{ai_text}\n\n"
+            f"CAUSES:\n{' | '.join(result.get('possibleCauses', []))}\n\n"
+            f"ACTIONS:\n{' | '.join(result.get('Recommendations', []))}\n\n"
+            f"DETAILS:\nDescription: {result.get('description')} | Team: {result.get('ResponsibleTeam')}\n\n"
+            f"TCODES:\n{', '.join(result.get('transactionCodes', []))}\n\n"
+            f"SAP NOTES:\n{' | '.join(result.get('sapNotes', []))}\n\n"
+            f"MAIL:\n{result.get('mailDraft')}"
+        )
 
         return jsonify({
             "status": "success",
