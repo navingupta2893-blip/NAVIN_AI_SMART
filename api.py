@@ -97,45 +97,45 @@ def get_dump():
         if result:
             ai_text = generate_ai_explanation(user_input, result)
 
-            # ---------- FORMATTED RESPONSE ----------
+            # ---------- CLEAN FORMATTED RESPONSE ----------
             formatted_output = f"""
-## SAP AI Analysis
+## 🤖 SAP Smart Diagnosis
 
-### Error: {result.get("error")}
+### 📌 Error: {result.get("error")}
 
-### Explanation
+### 🧠 Explanation
 {ai_text}
 
 ---
 
-### Details
+### 📊 Details
 - Description: {result.get("description")}
 - Severity: {result.get("severity")}
 - Team: {result.get("ResponsibleTeam")}
 
 ---
 
-### Possible Causes
+### ⚠️ Possible Causes
 {chr(10).join(["- " + c for c in result.get("possibleCauses", [])])}
 
 ---
 
-### Recommendations
+### ✅ Recommendations
 {chr(10).join(["- " + r for r in result.get("Recommendations", [])])}
 
 ---
 
-### Transaction Codes
+### 🔧 Transaction Codes
 {", ".join(result.get("transactionCodes", []))}
 
 ---
 
-### SAP Notes
+### 📚 SAP Notes
 {chr(10).join(result.get("sapNotes", []))}
 
 ---
 
-### Mail Draft
+### 📩 Mail Draft
 
 {result.get("mailDraft")}
 """
