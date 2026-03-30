@@ -5,76 +5,56 @@ from openai import OpenAI
 
 app = Flask(__name__)
 
-# ---------- OpenAI Setup ----------
+# ---------- OpenAI ----------
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ---------- Load JSON ----------
 with open("sap_notes_db2.json", "r") as f:
     data = json.load(f)
 
-# ---------- Smart Search ----------
+# ---------- Smart Matching (NO AI) ----------
 def find_error_smart(user_input):
     user_input = user_input.lower()
 
-    # ✅ Step 1: Direct match
+    best_match = None
+    max_score = 0
+
     for item in data:
-        if (
-            user_input in item.get("error", "").lower()
-            or any(user_input in v.lower() for v in item.get("errorVariants", []))
-        ):
-            return item
+        score = 0
 
-    # ✅ Step 2: AI match
-    try:
-        error_list = [item["error"] for item in data]
+        # match error name words
+        for word in item["error"].lower().split("_"):
+            if word in user_input:
+                score += 2
 
-        prompt = f"""
-You are an SAP expert.
+        # match variants
+        for variant in item.get("errorVariants", []):
+            if variant.lower() in user_input:
+                score += 3
 
-User query: {user_input}
+        if score > max_score:
+            max_score = score
+            best_match = item
 
-From this list of SAP errors:
-{error_list}
-
-Return ONLY the exact matching error name from the list.
-If nothing matches, return NONE.
-"""
-
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        ai_match = response.choices[0].message.content.strip()
-
-        for item in data:
-            if item["error"] == ai_match:
-                return item
-
-    except Exception as e:
-        print("AI matching failed:", str(e))
-
-    return None
+    return best_match if max_score > 0 else None
 
 # ---------- AI Explanation ----------
 def generate_ai_explanation(user_input, result):
     try:
         prompt = f"""
-You are an SAP expert helping a support engineer.
+You are an SAP expert.
 
 User query: {user_input}
 
 SAP Error: {result.get("error")}
 Description: {result.get("description")}
-Possible Causes: {result.get("possibleCauses")}
+Causes: {result.get("possibleCauses")}
 Recommendations: {result.get("Recommendations")}
 
-Explain clearly in simple terms:
-1. What happened
-2. Why it happened
-3. What should be done
-
-Keep it short and practical.
+Explain simply:
+- What happened
+- Why it happened
+- What to do
 """
 
         response = client.chat.completions.create(
@@ -102,17 +82,7 @@ def get_dump():
             return jsonify({
                 "status": "success",
                 "ai_explanation": ai_text,
-                "data": {
-                    "error": result.get("error"),
-                    "description": result.get("description"),
-                    "possibleCauses": result.get("possibleCauses"),
-                    "recommendations": result.get("Recommendations"),
-                    "sapNotes": result.get("sapNotes"),
-                    "transactionCodes": result.get("transactionCodes"),
-                    "severity": result.get("severity"),
-                    "team": result.get("ResponsibleTeam"),
-                    "mailDraft": result.get("mailDraft")
-                }
+                "data": result
             })
 
         return jsonify({
