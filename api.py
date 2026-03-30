@@ -5,14 +5,14 @@ from openai import OpenAI
 
 app = Flask(__name__)
 
-# ---------- OpenAI ----------
+# ---------- OpenAI Setup ----------
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ---------- Load JSON ----------
 with open("sap_notes_db2.json", "r") as f:
     data = json.load(f)
 
-# ---------- Smart Matching (NO AI) ----------
+# ---------- Smart Matching (NO AI dependency) ----------
 def find_error_smart(user_input):
     user_input = user_input.lower()
 
@@ -22,15 +22,21 @@ def find_error_smart(user_input):
     for item in data:
         score = 0
 
-        # match error name words
+        # Match words from error name
         for word in item["error"].lower().split("_"):
             if word in user_input:
                 score += 2
 
-        # match variants
+        # Match full variants
         for variant in item.get("errorVariants", []):
             if variant.lower() in user_input:
                 score += 3
+
+        # Match description keywords
+        if item.get("description"):
+            for word in item["description"].lower().split():
+                if word in user_input:
+                    score += 1
 
         if score > max_score:
             max_score = score
@@ -38,23 +44,25 @@ def find_error_smart(user_input):
 
     return best_match if max_score > 0 else None
 
-# ---------- AI Explanation ----------
+# ---------- AI Explanation (with fallback) ----------
 def generate_ai_explanation(user_input, result):
     try:
         prompt = f"""
-You are an SAP expert.
+You are an SAP expert helping a support engineer.
 
 User query: {user_input}
 
 SAP Error: {result.get("error")}
 Description: {result.get("description")}
-Causes: {result.get("possibleCauses")}
+Possible Causes: {result.get("possibleCauses")}
 Recommendations: {result.get("Recommendations")}
 
-Explain simply:
-- What happened
-- Why it happened
-- What to do
+Explain clearly:
+1. What happened
+2. Why it happened
+3. What should be done
+
+Keep it simple and practical.
 """
 
         response = client.chat.completions.create(
@@ -65,14 +73,32 @@ Explain simply:
         return response.choices[0].message.content
 
     except Exception as e:
-        return f"AI explanation failed: {str(e)}"
+        # ---------- Fallback (VERY IMPORTANT) ----------
+        return f"""
+SAP Error: {result.get("error")}
+
+Description:
+{result.get("description")}
+
+Possible Causes:
+{", ".join(result.get("possibleCauses", []))}
+
+Recommended Actions:
+{", ".join(result.get("Recommendations", []))}
+"""
 
 # ---------- API ----------
 @app.route("/api/dump", methods=["POST"])
 def get_dump():
     try:
         req = request.json
-        user_input = req.get("user_input", "")
+        user_input = req.get("user_input", "").strip()
+
+        if not user_input:
+            return jsonify({
+                "status": "error",
+                "message": "user_input is required"
+            })
 
         result = find_error_smart(user_input)
 
@@ -82,7 +108,17 @@ def get_dump():
             return jsonify({
                 "status": "success",
                 "ai_explanation": ai_text,
-                "data": result
+                "data": {
+                    "error": result.get("error"),
+                    "description": result.get("description"),
+                    "possibleCauses": result.get("possibleCauses"),
+                    "recommendations": result.get("Recommendations"),
+                    "sapNotes": result.get("sapNotes"),
+                    "transactionCodes": result.get("transactionCodes"),
+                    "severity": result.get("severity"),
+                    "team": result.get("ResponsibleTeam"),
+                    "mailDraft": result.get("mailDraft")
+                }
             })
 
         return jsonify({
