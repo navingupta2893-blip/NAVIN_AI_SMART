@@ -282,7 +282,6 @@ def get_dump():
 ### 📩 Mail Draft
 
 {result.get("mailDraft")}
-"""
 
             return jsonify({
                 "status": "success",
