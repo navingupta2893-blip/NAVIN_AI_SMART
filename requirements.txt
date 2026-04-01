@@ -1,3 +1,0 @@
-streamlit
-flask
-openai
